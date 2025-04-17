@@ -1,10 +1,15 @@
-# client_mqtt_display_auto.py
-import paho.mqtt.client as mqtt
-import requests
-from PIL import Image, ImageTk
-import tkinter as tk
+import os
 import io
-import sys
+import ssl
+import requests
+import tkinter as tk
+from PIL import Image, ImageTk
+from datetime import datetime
+from dotenv import load_dotenv
+import paho.mqtt.client as mqtt
+
+# Load environment variables
+load_dotenv()
 
 class AutoScreenApp:
     def __init__(self, master):
@@ -12,81 +17,90 @@ class AutoScreenApp:
         self.setup_display()
         self.setup_mqtt()
         
+    def log(self, message):
+        print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
+
     def setup_display(self):
-        # Configuración agresiva de pantalla completa
         self.master.attributes('-fullscreen', True)
-        self.master.overrideredirect(True)  # Elimina bordes y controles
+        self.master.overrideredirect(True)
         self.master.configure(bg='black')
-        
-        # Obtener dimensiones REALES de la pantalla actual
         self.update_screen_dimensions()
-        
-        # Label principal que ocupará toda la pantalla
+
         self.label = tk.Label(self.master, bg='black', borderwidth=0)
         self.label.pack(fill=tk.BOTH, expand=True)
-        
-        # Actualizar dimensiones cuando cambie la pantalla
         self.master.bind('<Configure>', self.on_window_change)
-    
+
     def update_screen_dimensions(self):
-        # Actualiza las dimensiones basado en la ventana actual
         self.screen_width = self.master.winfo_width()
         self.screen_height = self.master.winfo_height()
-        
-        # Si las dimensiones son 1x1 (no inicializadas), usar screeninfo
         if self.screen_width <= 1 or self.screen_height <= 1:
             try:
                 from screeninfo import get_monitors
                 monitors = get_monitors()
-                # Encontrar el monitor que contiene la ventana
-                x, y = self.master.winfo_x(), self.master.winfo_y()
-                for m in monitors:
-                    if m.x <= x <= m.x + m.width and m.y <= y <= m.y + m.height:
-                        self.screen_width = m.width
-                        self.screen_height = m.height
-                        break
-                else:  # Si no se encuentra, usar el primer monitor
-                    if monitors:
-                        self.screen_width = monitors[0].width
-                        self.screen_height = monitors[0].height
-            except ImportError:
-                # Fallback si screeninfo no está disponible
+                if monitors:
+                    self.screen_width = monitors[0].width
+                    self.screen_height = monitors[0].height
+            except:
                 self.screen_width = self.master.winfo_screenwidth()
                 self.screen_height = self.master.winfo_screenheight()
-    
+
     def on_window_change(self, event):
-        """Se ejecuta cuando la ventana cambia de pantalla"""
         self.update_screen_dimensions()
-    
+
     def setup_mqtt(self):
         self.client = mqtt.Client()
+        self.client.username_pw_set(
+            os.getenv("MQTT_USERNAME"),
+            os.getenv("MQTT_PASSWORD")
+        )
+        self.client.tls_set(cert_reqs=ssl.CERT_REQUIRED)
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
-        self.client.username_pw_set("raspberry", "Mawxab-jynqun-1dyzru")
-        self.client.connect("u2135bf1.ala.us-east-1.emqxsl.com", 8883)
-        self.client.tls_set()
-        
-        self.client.loop_start()
-    
+
+        try:
+            self.client.connect(
+                os.getenv("MQTT_BROKER"),
+                int(os.getenv("MQTT_PORT", 8883))
+            )
+            self.client.loop_start()
+            self.log("🔐 Conectado a MQTT seguro")
+        except Exception as e:
+            self.log(f"❌ Error al conectar a MQTT: {e}")
+
     def on_connect(self, client, userdata, flags, rc):
-        client.subscribe("display/image")
-    
+        topic = os.getenv("MQTT_TOPIC", "display/image")
+        client.subscribe(topic)
+
     def on_message(self, client, userdata, msg):
         url = msg.payload.decode()
+        self.log(f"🔗 URL recibida: {url}")
         self.display_image_from_url(url)
-    
-    def display_image_from_url(self, url):
-        try:
-            response = requests.get(url, timeout=5)
-            content_type = response.headers.get("Content-Type", "")
-            print("El tipo de archivo es: "+content_type)
-            if "image" not in content_type:
-                print(f"⚠️ El contenido no es una imagen. Content-Type: {content_type}")
-                return
 
-            # Guarda para inspección si es necesario
-            with open("debug_image.jpg", "wb") as f:
-                f.write(response.content)
+    def display_image_from_url(self, url):
+        # Seguridad: validar origen de la URL
+        base = os.getenv("AZURE_URL_BASE", "")
+        if not url.startswith(base):
+            self.log("⚠️ URL no permitida")
+            return
+
+        for attempt in range(3):
+            try:
+                response = requests.get(url, timeout=5)
+                if response.status_code == 200:
+                    break
+            except Exception as e:
+                self.log(f"❌ Intento {attempt+1} falló: {e}")
+        else:
+            self.log("❌ Falló la descarga tras 3 intentos")
+            self.display_placeholder()
+            return
+
+        try:
+            content_type = response.headers.get("Content-Type", "")
+            if "image" not in content_type:
+                self.log(f"⚠️ No es imagen válida. Tipo: {content_type}")
+                self.display_placeholder()
+                return
 
             image_data = io.BytesIO(response.content)
             image_data.seek(0)  # Asegura que el cursor esté al inicio
@@ -96,21 +110,25 @@ class AutoScreenApp:
                 img = Image.open(image_data)
                 img.verify()  # Verifica sin cargar completamente
             except Exception as e:
-                print("❌ La imagen no pasó verificación:", e)
+                self.log(f"❌ Verificación de imagen fallida: {e}")
+                self.display_placeholder()
                 return
 
-            # Reabrimos después de verificar
             image_data.seek(0)
             img = Image.open(image_data)
-
-            # Redimensionar y mostrar
             img = img.resize((self.screen_width, self.screen_height), Image.Resampling.LANCZOS)
             self.tk_image = ImageTk.PhotoImage(img)
             self.label.config(image=self.tk_image)
             self.label.update_idletasks()
 
         except Exception as e:
-            print(f"❌ Error al mostrar imagen:", e)
+            self.log(f"❌ Error al mostrar imagen: {e}")
+            self.display_placeholder()
+
+    def display_placeholder(self):
+        # Mostrar pantalla negra en caso de error
+        self.label.config(image='', bg='black')
+        self.label.update_idletasks()
 
 if __name__ == "__main__":
     root = tk.Tk()
