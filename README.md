@@ -71,8 +71,9 @@ WorkingDirectory=/home/pi/scripts
 ExecStart=/home/pi/scripts/venv/bin/python /home/pi/scripts/client-mqtt.py
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority
-Restart=always
-RestartSec=5
+Restart=on-failure
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Install]
 WantedBy=graphical.target
