@@ -21,9 +21,8 @@ class AutoScreenApp:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {message}")
 
     def setup_display(self):
-        self.master.attributes('-fullscreen', True)
-        self.master.overrideredirect(True)
         self.master.configure(bg='black')
+        self.master.attributes('-fullscreen', True)  # Modo pantalla completa en Linux
         self.update_screen_dimensions()
 
         self.label = tk.Label(self.master, bg='black', borderwidth=0)
@@ -31,8 +30,8 @@ class AutoScreenApp:
         self.master.bind('<Configure>', self.on_window_change)
 
     def update_screen_dimensions(self):
-        self.screen_width = self.master.winfo_width()
-        self.screen_height = self.master.winfo_height()
+        self.screen_width = self.master.winfo_screenwidth()
+        self.screen_height = self.master.winfo_screenheight()
         if self.screen_width <= 1 or self.screen_height <= 1:
             try:
                 from screeninfo import get_monitors
