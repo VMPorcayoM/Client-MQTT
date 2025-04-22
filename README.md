@@ -24,6 +24,12 @@ python3 -m venv venv
 source venv/bin/activate
 
 ### 3. Install Python Dependencies
+Base system necessary to compile Pillow:
+
+sudo apt update
+sudo apt install -y \
+libjpeg-dev zlib1g-dev libfreetype6-dev liblcms2-dev libwebp-dev \
+tcl8.6-dev tk8.6-dev python3-tk python3-dev python3-venv
 
 Make sure you’re in the same folder as the requirements.txt file and run:
 
@@ -46,3 +52,42 @@ Replace values with your actual MQTT broker credentials and base URL for image v
 
 While the virtual environment is active, run the script using:
 python client-mqtt.py
+
+🔄 Set Up Automatic Execution on Boot (systemd)
+
+### 6. Create a systemd service
+Create the following file:
+sudo nano /etc/systemd/system/mqtt-client.service
+
+Paste the following content:
+[Unit]
+Description=MQTT Image Display Client
+After=network.target graphical.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/scripts
+ExecStart=/home/pi/scripts/venv/bin/python /home/pi/scripts/client-mqtt.py
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
+
+
+Replace paths with your actual script location if different.
+
+### 7. Enable and Start the Service
+sudo systemctl daemon-reexec
+sudo systemctl daemon-reload
+sudo systemctl enable mqtt-client.service
+sudo systemctl start mqtt-client.service
+
+### 8. Check Service Status and Logs
+systemctl status mqtt-client.service
+
+To view logs in real time:
+journalctl -fu mqtt-client.service
