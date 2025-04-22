@@ -65,7 +65,7 @@ class AutoScreenApp:
             self.client.loop_start()
             self.log("🔐 Conectado a MQTT seguro")
         except Exception as e:
-            self.log(f"❌ Error al conectar a MQTT: {e}")
+            self.log(f"Error al conectar a MQTT: {e}")
 
     def on_connect(self, client, userdata, flags, rc):
         topic = os.getenv("MQTT_TOPIC", "display/image")
@@ -73,14 +73,14 @@ class AutoScreenApp:
 
     def on_message(self, client, userdata, msg):
         url = msg.payload.decode()
-        self.log(f"🔗 URL recibida: {url}")
+        self.log(f"URL recibida: {url}")
         self.display_image_from_url(url)
 
     def display_image_from_url(self, url):
         # Seguridad: validar origen de la URL
         base = os.getenv("AZURE_URL_BASE", "")
         if not url.startswith(base):
-            self.log("⚠️ URL no permitida")
+            self.log("URL no permitida")
             return
 
         for attempt in range(3):
@@ -89,16 +89,16 @@ class AutoScreenApp:
                 if response.status_code == 200:
                     break
             except Exception as e:
-                self.log(f"❌ Intento {attempt+1} falló: {e}")
+                self.log(f"Intento {attempt+1} falló: {e}")
         else:
-            self.log("❌ Falló la descarga tras 3 intentos")
+            self.log("Falló la descarga tras 3 intentos")
             self.display_placeholder()
             return
 
         try:
             content_type = response.headers.get("Content-Type", "")
             if "image" not in content_type:
-                self.log(f"⚠️ No es imagen válida. Tipo: {content_type}")
+                self.log(f"No es imagen válida. Tipo: {content_type}")
                 self.display_placeholder()
                 return
 
@@ -110,7 +110,7 @@ class AutoScreenApp:
                 img = Image.open(image_data)
                 img.verify()  # Verifica sin cargar completamente
             except Exception as e:
-                self.log(f"❌ Verificación de imagen fallida: {e}")
+                self.log(f"Verificación de imagen fallida: {e}")
                 self.display_placeholder()
                 return
 
@@ -122,7 +122,7 @@ class AutoScreenApp:
             self.label.update_idletasks()
 
         except Exception as e:
-            self.log(f"❌ Error al mostrar imagen: {e}")
+            self.log(f"Error al mostrar imagen: {e}")
             self.display_placeholder()
 
     def display_placeholder(self):
