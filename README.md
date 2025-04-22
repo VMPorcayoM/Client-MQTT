@@ -60,6 +60,7 @@ Create the following file:
 sudo nano /etc/systemd/system/mqtt-client.service
 
 Paste the following content:
+
 [Unit]
 Description=MQTT Image Display Client
 After=network.target graphical.target
@@ -68,6 +69,7 @@ After=network.target graphical.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/scripts
+ExecStartPre=/bin/sleep 15
 ExecStart=/home/pi/scripts/venv/bin/python /home/pi/scripts/client-mqtt.py
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/pi/.Xauthority

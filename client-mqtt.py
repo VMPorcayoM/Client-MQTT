@@ -22,6 +22,7 @@ class AutoScreenApp:
 
     def setup_display(self):
         self.master.configure(bg='black')
+        self.master.overrideredirect(True)
         self.master.attributes('-fullscreen', True)
         self.configure_window()
         self.update_screen_dimensions()
@@ -41,6 +42,7 @@ class AutoScreenApp:
         self.master.destroy()
 
     def update_screen_dimensions(self):
+        self.master.update_idletasks()  # 🔧 Forzar actualización de geometría
         self.screen_width = self.master.winfo_screenwidth()
         self.screen_height = self.master.winfo_screenheight()
         if self.screen_width <= 1 or self.screen_height <= 1:
