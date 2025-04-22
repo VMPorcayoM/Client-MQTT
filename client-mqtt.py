@@ -36,7 +36,6 @@ class AutoScreenApp:
         self.master.bind('<Escape>', lambda e: self.quit())
 
     def quit(self):
-        self.log("👋 Exiting...")
         self.client.loop_stop()
         self.client.disconnect()
         self.master.destroy()
@@ -81,7 +80,6 @@ class AutoScreenApp:
 
     def on_message(self, client, userdata, msg):
         url = msg.payload.decode()
-        self.log(f"Received URL: {url}")
         self.display_image_from_url(url)
 
     def is_valid_image(self, response):
@@ -105,7 +103,7 @@ class AutoScreenApp:
             self.log("URL not allowed")
             return
 
-        for attempt in range(3):
+        for attempt in range(2):
             try:
                 response = requests.get(url, timeout=5)
                 if response.status_code == 200:
@@ -113,7 +111,7 @@ class AutoScreenApp:
             except Exception as e:
                 self.log(f"Attempt {attempt + 1} failed: {e}")
         else:
-            self.log("Download failed after 3 attempts")
+            self.log("Download failed after 2 attempts")
             self.display_placeholder()
             return
 
