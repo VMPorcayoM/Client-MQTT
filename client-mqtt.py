@@ -13,6 +13,8 @@ load_dotenv()
 
 class AutoScreenApp:
     def __init__(self, master):
+        self.last_url = None
+        self.last_image_signature = None  # To detect changes in real time
         self.master = master
         self.setup_display()
         self.setup_mqtt()
@@ -82,6 +84,11 @@ class AutoScreenApp:
 
     def on_message(self, client, userdata, msg):
         url = msg.payload.decode()
+        # If URL didn't change
+        if url == self.last_url:
+            self.log("URL already displayed. Skipping download.")
+            return
+        self.last_url = url
         self.display_image_from_url(url)
 
     def is_valid_image(self, response):
@@ -108,6 +115,7 @@ class AutoScreenApp:
         for attempt in range(2):
             try:
                 response = requests.get(url, timeout=5)
+                self.log(f"Download attempt {attempt+1}: {len(response.content)/1024:.2f} KB")
                 if response.status_code == 200:
                     break
             except Exception as e:
@@ -120,7 +128,13 @@ class AutoScreenApp:
         if not self.is_valid_image(response):
             self.display_placeholder()
             return
-
+        # Detect if the real content is already displayed (by hash sign)
+        import hashlib
+        signature = hashlib.md5(response.content).hexdigest()
+        if signature == self.last_image_signature:
+            self.log("Image content already displayed. Skipping render.")
+            return
+        self.last_image_signature = signature
         try:
             image_data = io.BytesIO(response.content)
             image_data.seek(0)
