@@ -16,7 +16,9 @@ class AutoScreenApp:
         self.last_url = None
         self.last_image_signature = None  # To detect changes in real time
         self.master = master
+        self.cache_path = os.getenv("CACHE_IMAGE_PATH", "/home/pi/scripts/cache.jpg")
         self.setup_display()
+        self.display_cached_or_black()
         self.setup_mqtt()
         
     def log(self, message):
@@ -44,7 +46,7 @@ class AutoScreenApp:
         self.master.destroy()
 
     def update_screen_dimensions(self):
-        self.master.update_idletasks()  # 🔧 Forzar actualización de geometría
+        self.master.update_idletasks()  # 🔧 Force update the geometry
         self.screen_width = self.master.winfo_screenwidth()
         self.screen_height = self.master.winfo_screenheight()
         if self.screen_width <= 1 or self.screen_height <= 1:
@@ -122,11 +124,11 @@ class AutoScreenApp:
                 self.log(f"Attempt {attempt + 1} failed: {e}")
         else:
             self.log("Download failed after 2 attempts")
-            self.display_placeholder()
+            self.display_cached_or_black()
             return
 
         if not self.is_valid_image(response):
-            self.display_placeholder()
+            self.display_cached_or_black()
             return
         # Detect if the real content is already displayed (by hash sign)
         import hashlib
@@ -146,11 +148,22 @@ class AutoScreenApp:
 
         except Exception as e:
             self.log(f"Error displaying image: {e}")
-            self.display_placeholder()
-
-    def display_placeholder(self):
-        self.label.config(image='', bg='black')
-        self.label.update_idletasks()
+            self.display_cached_or_black()
+        
+    def display_cached_or_black(self):
+        try:
+            if os.path.exists(self.cache_path):
+                img = Image.open(self.cache_path)
+                img = img.resize((self.screen_width, self.screen_height), Image.Resampling.LANCZOS)
+                self.tk_image = ImageTk.PhotoImage(img)
+                self.label.config(image=self.tk_image)
+                self.log("Showing cached image")
+            else:
+                self.label.config(image='', bg='black')
+                self.label.update_idletasks()
+        except Exception as e:
+            self.label.config(image='', bg='black')
+            self.log(f"Error setting cached image: {e}")
 
 if __name__ == "__main__":
     root = tk.Tk()

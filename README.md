@@ -35,7 +35,7 @@ Make sure you’re in the same folder as the requirements.txt file and run:
 
 pip install -r requirements.txt
 
-### 4. Create the .env File
+### 4. Create the .env File and cache Folder
 
 In the root of the project directory, create a file named .env and add the following:
 MQTT_BROKER=your-mqtt-broker-url
@@ -43,10 +43,13 @@ MQTT_PORT=8883
 MQTT_USERNAME=your-username
 MQTT_PASSWORD=your-password
 MQTT_TOPIC=display/image
-
 AZURE_URL_BASE=https://your-blob-storage-url/
+CACHE_IMAGE_PATH = "/home/pi/scripts/cache/last_image.jpg"
 
 Replace values with your actual MQTT broker credentials and base URL for image validation.
+
+
+Create a folder on /home/pi/scripts/ called "cache" to save last image cache in case of internet error
 
 ### 5. Run the Script
 
